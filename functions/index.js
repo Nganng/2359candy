@@ -56,9 +56,7 @@ app.get('/postings', (req, res) => {
     db.collection('postings').get()
     .then(ref => {
         if (ref.empty) {
-            res.status(400).send({
-                message: "No matching posting documents."
-            });
+            res.status(400).send([]);
         }
         var postings = [];  
         ref.forEach(doc => {
@@ -78,9 +76,15 @@ app.get('/postings', (req, res) => {
 app.get('/postings/:postingId', (req, res) => {
     db.collection('postings').doc(req.params.postingId).get()
     .then(ref => {
-        var data = ref.data();
-        data.id = ref.id;
-        res.status(200).send(data)
+        if (ref.data()) {
+            var data = ref.data();
+            data.id = ref.id;
+            res.status(200).send(data)
+        } else {
+            res.status(400).send({
+                message: "Object with ID " + req.params.candidateId + " does not exist."
+            });
+        }
     }).catch(err => {
         res.status(400).send({
             message: "An error has occured. " + err
@@ -156,9 +160,7 @@ app.get('/candidates', (req, res) => {
     db.collection('candidates').get()
     .then(ref => {
         if (ref.empty) {
-            res.status(400).send({
-                message: "No matching candidate documents."
-            });
+            res.status(400).send([]);
         }
         var candidates = [];  
         ref.forEach(doc => {
@@ -178,9 +180,15 @@ app.get('/candidates', (req, res) => {
 app.get('/candidates/:candidateId', (req, res) => {
     db.collection('candidates').doc(req.params.candidateId).get()
     .then(ref => {
-        var data = ref.data();
-        data.id = ref.id;
-        res.status(200).send(data)
+        if (ref.data()) {
+            var data = ref.data();
+            data.id = ref.id;
+            res.status(200).send(data)
+        } else {
+            res.status(400).send({
+                message: "Object with ID " + req.params.candidateId + " does not exist."
+            });
+        }
     }).catch(err => {
         res.status(400).send({
             message: "An error has occured. " + err
