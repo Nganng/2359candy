@@ -13,6 +13,7 @@ const app = express();
 const main = express();
 
 const postingsCollection = 'postings';
+const candidateCollection = 'candidates';
 
 app.use(cors({ origin: true }));
 main.use('/api/v1', app);
@@ -25,7 +26,12 @@ exports.webApi = functions.https.onRequest(main);
 
 
 
+
 // CRUD Postings
+
+
+
+
 // Add new posting
 app.post('/postings', (req, res) => {
     const validationError = validatePostingInput(req.body);
@@ -110,8 +116,118 @@ app.delete('/postings/:postingId', (req, res) => {
         });
     });
 })
-// Validation helper function for postings
+// Validation function for postings
 function validatePostingInput(body) {
-    if (!body.jobTitle) return "Job Title cannot be empty";
+    if (!body.jobTitle) return "jobTitle cannot be empty";
+    // Optional fields are
+    // - jdUrl
+    return null;
+}
+
+
+
+
+// CRUD Candidates
+
+
+
+
+// Add new candidate
+app.post('/candidates', (req, res) => {
+    const validationError = validateCandidateInput(req.body);
+    if (!validationError) {
+        db.collection('candidates').add(req.body)
+        .then(ref => {
+            res.status(200).send({ id: ref.id })
+        })
+        .catch(err => {
+            res.status(400).send({
+                message: "An error has occured when adding a candidate " + err
+            })
+        });
+    } else {
+        res.status(400).send({
+            message: "Input is invalid. " + validationError
+        });
+    }
+})
+// Get all candidates
+app.get('/candidates', (req, res) => {
+    db.collection('candidates').get()
+    .then(ref => {
+        if (ref.empty) {
+            res.status(400).send({
+                message: "No matching candidate documents."
+            });
+        }
+        var candidates = [];  
+        ref.forEach(doc => {
+            var data = doc.data();
+            data.id = doc.id; 
+            candidates.push(data);
+        });
+        res.status(200).send(candidates);
+    })
+    .catch(err => {
+        res.status(400).send({
+            message: "An error has occured. " + err
+        });
+    });
+})
+// Get a candidate
+app.get('/candidates/:candidateId', (req, res) => {
+    db.collection('candidates').doc(req.params.candidateId).get()
+    .then(ref => {
+        var data = ref.data();
+        data.id = ref.id;
+        res.status(200).send(data)
+    }).catch(err => {
+        res.status(400).send({
+            message: "An error has occured. " + err
+        });
+    });
+})
+// Update a candidate
+app.put('/candidates/:candidateId', (req, res) => {
+    const validationError = validateCandidateInput(req.body);
+    if (!validationError) {
+        db.collection('candidates').doc(req.params.candidateId).update(req.body)
+        .then(ref => {
+            res.status(200).send(ref)
+        }).catch(err => {
+            res.status(400).send({
+                message: "An error has occured updating the candidate. " + err
+            });
+        });
+    } else {
+        res.status(400).send({
+            message: "Input is invalid. " + validationError
+        });
+    }
+})
+// Delete a candidate 
+app.delete('/candidates/:candidateId', (req, res) => {
+    db.collection('candidates').doc(req.params.candidateId).delete()
+    .then(ref => {
+        res.status(200).send(ref)
+    }).catch(err => {
+        res.status(400).send({
+            message: "An error has occured deleting the candidate. " + err
+        });
+    });
+})
+// Validation function for candidates
+function validateCandidateInput(body) {
+    if (!body.name) return "name cannot be empty";
+    if (!body.email) return "email cannot be empty";
+    if (!body.contactNumber) return "contactNumber cannot be empty";
+    if (!body.office) return "office cannot be empty";
+    if (!body.posting) return "posting cannot be empty";
+    if (!body.source) return "source cannot be empty";
+    // Optional fields are
+    // - currentSalary
+    // - expectedSalary
+    // - resumeUrl
+    // - notes (sub-collection)
     return null;
 }
