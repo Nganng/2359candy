@@ -20,8 +20,6 @@ main.use('/api/v1', app);
 main.use(bodyParser.json());
 main.use(bodyParser.urlencoded({ extended: false }));
 
-// webApi is your functions name, and you will pass main as 
-// a parameter
 exports.webApi = functions.https.onRequest(main);
 
 
@@ -36,6 +34,7 @@ exports.webApi = functions.https.onRequest(main);
 app.post('/postings', (req, res) => {
     const validationError = validatePostingInput(req.body);
     if (!validationError) {
+        req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
         db.collection('postings').add(req.body)
         .then(ref => {
             res.status(200).send({ id: ref.id })
@@ -140,6 +139,7 @@ function validatePostingInput(body) {
 app.post('/candidates', (req, res) => {
     const validationError = validateCandidateInput(req.body);
     if (!validationError) {
+        req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
         db.collection('candidates').add(req.body)
         .then(ref => {
             res.status(200).send({ id: ref.id })
@@ -232,10 +232,130 @@ function validateCandidateInput(body) {
     if (!body.office) return "office cannot be empty";
     if (!body.posting) return "posting cannot be empty";
     if (!body.source) return "source cannot be empty";
+    if (!body.status) return "status cannot be empty";
     // Optional fields are
     // - currentSalary
     // - expectedSalary
     // - resumeUrl
     // - notes (sub-collection)
+    return null;
+}
+
+
+
+
+// CRUD Notes
+
+
+
+
+// Add new note
+app.post('/candidates/:candidateId/notes', (req, res) => {
+    db.collection('candidates').doc(req.params.candidateId).get()
+    .then(doc => {
+        if (!doc.exists) {
+            res.status(400).send({
+                message: "Candidate does not exist."
+            });
+        } else {
+            const validationError = validateNoteInput(req.body);
+            if (!validationError) {
+                req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
+                doc.ref.collection('notes').add(req.body)
+                .then(ref => {
+                    res.status(200).send({ id: ref.id })
+                })
+                .catch(err => {
+                    res.status(400).send({
+                        message: "An error has occured when adding a note " + err
+                    })
+                });
+            } else {
+                res.status(400).send({
+                    message: "Input is invalid. " + validationError
+                });
+            }
+        }
+    })
+    .catch(err => {
+        res.status(400).send({
+            message: "An error has occured fetching the candidate. " + err
+        });
+    });
+})
+// Get all notes of a candidate
+app.get('/candidates/:candidateId/notes', (req, res) => {
+    db.collection('candidates').doc(req.params.candidateId)
+    .collection('notes').get()
+    .then(ref => {
+        if (ref.empty) {
+            res.status(400).send([]);
+        }
+        var candidates = [];  
+        ref.forEach(doc => {
+            var data = doc.data();
+            data.id = doc.id; 
+            candidates.push(data);
+        });
+        res.status(200).send(candidates);
+    })
+    .catch(err => {
+        res.status(400).send({
+            message: "An error has occured. " + err
+        });
+    });
+})
+// Update a note
+app.put('/candidates/:candidateId/notes/:noteId', (req, res) => {
+    const validationError = validateNoteInput(req.body);
+    if (!validationError) {
+        db.collection('candidates').doc(req.params.candidateId)
+        .collection('notes').doc(req.params.noteId).update(req.body)
+        .then(ref => {
+            res.status(200).send(ref)
+        }).catch(err => {
+            res.status(400).send({
+                message: "An error has occured updating the note. " + err
+            });
+        });
+    } else {
+        res.status(400).send({
+            message: "Input is invalid. " + validationError
+        });
+    }
+})
+// Delete a note 
+app.delete('/candidates/:candidateId/notes/:noteId', (req, res) => {
+    db.collection('candidates').doc(req.params.candidateId).get()
+    .then(doc => {
+        if (!doc.exists) {
+            res.status(400).send({
+                message: "Candidate does not exist."
+            });
+        } else {
+            doc.ref.collection('notes').doc(req.params.noteId).delete()
+            .then(ref => {
+                res.status(200).send(ref)
+            }).catch(err => {
+                res.status(400).send({
+                    message: "An error has occured deleting the note. " + err
+                });
+            });
+        }
+    })
+    .catch(err => {
+        res.status(400).send({
+            message: "An error has occured fetching the candidate. " + err
+        });
+    });
+})
+// Validation function for notes
+function validateNoteInput(body) {
+    if (!body.title) return "title cannot be empty";
+    if (!body.content) return "content cannot be empty";
+    if (!body.author) return "Something is wrong. Current user is missing"
+
+    // Optional fields are
+    // - none.
     return null;
 }
