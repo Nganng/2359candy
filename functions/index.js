@@ -56,7 +56,7 @@ app.post('/signup', (req, res) => {
         })
     });
 });
-app.post('/authenticate', (req, res) => {
+app.post('/login', (req, res) => {
     if(!req.body.email) {
         res.status(400).send({
             message: "email is required"
@@ -69,13 +69,13 @@ app.post('/authenticate', (req, res) => {
     }
     // Looks like neither firebase-functions and firebase-admin do not provide an auth function
     // So.. we hit the REST api. 
-    axios.post('https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key=AIzaSyD2NST1cArTklGbifh7npmiyuzlIgU60SA', {
+    axios.post(`https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key=${functions.config().project.webkey}`, {
         email: req.body.email,
         password: req.body.password,
         returnSecureToken: true
     })
     .then((response) => {
-        res.status(200).send(response.data)
+        res.status(200).send(response.data.message)
     })
     .catch((err) => {
         res.status(400).send({
