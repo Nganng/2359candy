@@ -1,9 +1,9 @@
 const functions = require('firebase-functions');
-
 const admin = require('firebase-admin');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const axios = require('axios');
 
 admin.initializeApp(functions.config().firebase);
 
@@ -12,15 +12,79 @@ const db = admin.firestore();
 const app = express();
 const main = express();
 
-const postingsCollection = 'postings';
-const candidateCollection = 'candidates';
-
 app.use(cors({ origin: true }));
 main.use('/api/v1', app);
 main.use(bodyParser.json());
 main.use(bodyParser.urlencoded({ extended: false }));
 
 exports.webApi = functions.https.onRequest(main);
+
+
+
+
+// Auth APIs
+
+
+
+
+app.post('/signup', (req, res) => {
+    if(!req.body.email) {
+        res.status(400).send({
+            message: "email is required"
+        })
+    }
+    if(!req.body.password) {
+        res.status(400).send({
+            message: "password is required"
+        })
+    }
+    admin.auth().createUser({
+        email: req.body.email,
+        emailVerified: false,
+        password: req.body.password,
+        disabled: false
+    })
+    .then(userRecord => {
+        // See the UserRecord reference doc for the contents of userRecord.
+        res.status(200).send({ 
+            id: userRecord.uid
+        })
+    })
+    .catch(err => {
+        res.status(400).send({
+            message: "An error has occured when creating a user " + err
+        })
+    });
+});
+app.post('/authenticate', (req, res) => {
+    if(!req.body.email) {
+        res.status(400).send({
+            message: "email is required"
+        })
+    }
+    if(!req.body.password) {
+        res.status(400).send({
+            message: "password is required"
+        })
+    }
+    // Looks like neither firebase-functions and firebase-admin do not provide an auth function
+    // So.. we hit the REST api. 
+    axios.post('https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key=AIzaSyD2NST1cArTklGbifh7npmiyuzlIgU60SA', {
+        email: req.body.email,
+        password: req.body.password,
+        returnSecureToken: true
+    })
+    .then((response) => {
+        res.status(200).send(response.data)
+    })
+    .catch((err) => {
+        res.status(400).send({
+            message: "An error has occured authenticating this user " + err.message
+        })
+    });
+})
+
+
 
 
 
