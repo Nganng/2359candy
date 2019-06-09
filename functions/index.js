@@ -75,7 +75,7 @@ app.post('/login', (req, res) => {
         returnSecureToken: true
     })
     .then((response) => {
-        res.status(200).send(response.data.message)
+        res.status(200).send(response.data)
     })
     .catch((err) => {
         res.status(400).send({
