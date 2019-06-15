@@ -26,7 +26,7 @@ exports.webApi = functions.https.onRequest(main);
 // `Authorization: Bearer <Firebase ID Token>`.
 // when decoded successfully, the ID Token content will be added as `req.user`.
 const validateUser = async (req, res, next) => {
-    console.log('Check if request is authorized with Firebase ID token');
+    //console.log('Check if request is authorized with Firebase ID token');
   
     if ((!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) &&
         !(req.cookies && req.cookies.__session)) {
@@ -40,11 +40,11 @@ const validateUser = async (req, res, next) => {
   
     let idToken;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      console.log('Found "Authorization" header');
+      //console.log('Found "Authorization" header');
       // Read the ID Token from the Authorization header.
       idToken = req.headers.authorization.split('Bearer ')[1];
     } else if(req.cookies) {
-      console.log('Found "__session" cookie');
+      //console.log('Found "__session" cookie');
       // Read the ID Token from cookie.
       idToken = req.cookies.__session;
     } else {
@@ -55,12 +55,12 @@ const validateUser = async (req, res, next) => {
   
     try {
       const decodedIdToken = await admin.auth().verifyIdToken(idToken);
-      console.log('ID Token correctly decoded', decodedIdToken);
+      //console.log('ID Token correctly decoded', decodedIdToken);
       req.user = decodedIdToken;
       next();
       return;
     } catch (error) {
-      console.error('Error while verifying Firebase ID token:', error);
+      //console.error('Error while verifying Firebase ID token:', error);
       res.status(403).send('Unauthorized');
       return;
     }
@@ -161,23 +161,16 @@ app.post('/refreshIdToken', (req, res) =>{
 
 // Add new posting
 app.post('/postings', (req, res) => {
-    const validationError = validatePostingInput(req.body);
-    if (!validationError) {
-        req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
-        db.collection('postings').add(req.body)
-        .then(ref => {
-            res.status(200).send({ id: ref.id })
-        })
-        .catch(err => {
-            res.status(400).send({
-                message: "An error has occured when adding a posting " + err
-            })
-        });
-    } else {
+    req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
+    db.collection('postings').add(req.body)
+    .then(ref => {
+        res.status(200).send({ id: ref.id })
+    })
+    .catch(err => {
         res.status(400).send({
-            message: "Input is invalid. " + validationError
-        });
-    }
+            message: "An error has occured when adding a posting " + err
+        })
+    });
 })
 // Get all postings
 app.get('/postings', validateUser, (req, res) => {
@@ -221,21 +214,14 @@ app.get('/postings/:postingId', validateUser, (req, res) => {
 })
 // Update a posting
 app.put('/postings/:postingId', validateUser, (req, res) => {
-    const validationError = validatePostingInput(req.body);
-    if (!validationError) {
-        db.collection('postings').doc(req.params.postingId).update(req.body)
-        .then(ref => {
-            res.status(200).send(ref)
-        }).catch(err => {
-            res.status(400).send({
-                message: "An error has occured updating the posting. " + err
-            });
-        });
-    } else {
+    db.collection('postings').doc(req.params.postingId).update(req.body)
+    .then(ref => {
+        res.status(200).send(ref)
+    }).catch(err => {
         res.status(400).send({
-            message: "Input is invalid. " + validationError
+            message: "An error has occured updating the posting. " + err
         });
-    }
+    });
 })
 // Delete a posting 
 app.delete('/postings/:postingId', validateUser, (req, res) => {
@@ -248,13 +234,6 @@ app.delete('/postings/:postingId', validateUser, (req, res) => {
         });
     });
 })
-// Validation function for postings
-function validatePostingInput(body) {
-    if (!body.jobTitle) return "jobTitle cannot be empty";
-    // Optional fields are
-    // - jdUrl
-    return null;
-}
 
 
 
@@ -266,27 +245,41 @@ function validatePostingInput(body) {
 
 // Add new candidate
 app.post('/candidates', validateUser, (req, res) => {
-    const validationError = validateCandidateInput(req.body);
-    if (!validationError) {
-        req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
-        db.collection('candidates').add(req.body)
-        .then(ref => {
-            res.status(200).send({ id: ref.id })
-        })
-        .catch(err => {
-            res.status(400).send({
-                message: "An error has occured when adding a candidate " + err
-            })
-        });
-    } else {
+    req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
+    if (!req.body.status) req.body.status = "Inbox";
+    db.collection('candidates').add(req.body)
+    .then(ref => {
+        res.status(200).send({ id: ref.id })
+    })
+    .catch(err => {
         res.status(400).send({
-            message: "Input is invalid. " + validationError
-        });
-    }
+            message: "An error has occured when adding a candidate " + err
+        })
+    });
 })
 // Get all candidates
 app.get('/candidates', validateUser, (req, res) => {
-    db.collection('candidates').get()
+
+    let query = db.collection('candidates').orderBy('createdAt');
+
+    if (req.query.status) {
+        status = req.query.status;
+    }
+    query = query.where('status', '==', status);
+
+    if (req.query.posting) {
+        query = query.where('posting', '==', req.query.posting);
+    }
+    if (req.query.office) {
+        query = query.where('office', '==', req.query.office);
+    }
+    //if (req.query.name) {
+    //    query = query.where('name', '>=', req.query.name).where('name', '<', req.query.name);
+    //}
+
+    console.log(query)
+
+    query.get()
     .then(ref => {
         if (ref.empty) {
             res.status(400).send([]);
@@ -326,21 +319,14 @@ app.get('/candidates/:candidateId', validateUser, (req, res) => {
 })
 // Update a candidate
 app.put('/candidates/:candidateId', validateUser, (req, res) => {
-    const validationError = validateCandidateInput(req.body);
-    if (!validationError) {
-        db.collection('candidates').doc(req.params.candidateId).update(req.body)
-        .then(ref => {
-            res.status(200).send(ref)
-        }).catch(err => {
-            res.status(400).send({
-                message: "An error has occured updating the candidate. " + err
-            });
-        });
-    } else {
+    db.collection('candidates').doc(req.params.candidateId).update(req.body)
+    .then(ref => {
+        res.status(200).send(ref)
+    }).catch(err => {
         res.status(400).send({
-            message: "Input is invalid. " + validationError
+            message: "An error has occured updating the candidate. " + err
         });
-    }
+    });
 })
 // Delete a candidate 
 app.delete('/candidates/:candidateId', validateUser, (req, res) => {
@@ -353,22 +339,6 @@ app.delete('/candidates/:candidateId', validateUser, (req, res) => {
         });
     });
 })
-// Validation function for candidates
-function validateCandidateInput(body) {
-    if (!body.name) return "name cannot be empty";
-    if (!body.email) return "email cannot be empty";
-    if (!body.contactNumber) return "contactNumber cannot be empty";
-    if (!body.office) return "office cannot be empty";
-    if (!body.posting) return "posting cannot be empty";
-    if (!body.source) return "source cannot be empty";
-    if (!body.status) return "status cannot be empty";
-    // Optional fields are
-    // - currentSalary
-    // - expectedSalary
-    // - resumeUrl
-    // - notes (sub-collection)
-    return null;
-}
 
 
 
@@ -387,23 +357,16 @@ app.post('/candidates/:candidateId/notes', validateUser, (req, res) => {
                 message: "Candidate does not exist."
             });
         } else {
-            const validationError = validateNoteInput(req.body);
-            if (!validationError) {
-                req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
-                doc.ref.collection('notes').add(req.body)
-                .then(ref => {
-                    res.status(200).send({ id: ref.id })
-                })
-                .catch(err => {
-                    res.status(400).send({
-                        message: "An error has occured when adding a note " + err
-                    })
-                });
-            } else {
+            req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
+            doc.ref.collection('notes').add(req.body)
+            .then(ref => {
+                res.status(200).send({ id: ref.id })
+            })
+            .catch(err => {
                 res.status(400).send({
-                    message: "Input is invalid. " + validationError
-                });
-            }
+                    message: "An error has occured when adding a note " + err
+                })
+            });
         }
     })
     .catch(err => {
@@ -436,9 +399,7 @@ app.get('/candidates/:candidateId/notes', validateUser, (req, res) => {
 })
 // Update a note
 app.put('/candidates/:candidateId/notes/:noteId', validateUser, (req, res) => {
-    const validationError = validateNoteInput(req.body);
-    if (!validationError) {
-        db.collection('candidates').doc(req.params.candidateId)
+    db.collection('candidates').doc(req.params.candidateId)
         .collection('notes').doc(req.params.noteId).update(req.body)
         .then(ref => {
             res.status(200).send(ref)
@@ -447,11 +408,6 @@ app.put('/candidates/:candidateId/notes/:noteId', validateUser, (req, res) => {
                 message: "An error has occured updating the note. " + err
             });
         });
-    } else {
-        res.status(400).send({
-            message: "Input is invalid. " + validationError
-        });
-    }
 })
 // Delete a note 
 app.delete('/candidates/:candidateId/notes/:noteId', validateUser, (req, res) => {
@@ -478,13 +434,3 @@ app.delete('/candidates/:candidateId/notes/:noteId', validateUser, (req, res) =>
         });
     });
 })
-// Validation function for notes
-function validateNoteInput(body) {
-    if (!body.title) return "title cannot be empty";
-    if (!body.content) return "content cannot be empty";
-    if (!body.author) return "Something is wrong. Current user is missing"
-
-    // Optional fields are
-    // - none.
-    return null;
-}
