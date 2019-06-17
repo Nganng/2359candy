@@ -279,11 +279,10 @@ app.post('/candidates-insecure', (req, res) => {
 app.get('/candidates', validateUser, (req, res) => {
 
     let query = db.collection('candidates').orderBy('createdAt');
-
     if (req.query.status) {
         status = req.query.status;
+        query = query.where('status', '==', status);
     }
-    query = query.where('status', '==', status);
 
     if (req.query.posting) {
         query = query.where('posting', '==', req.query.posting);
