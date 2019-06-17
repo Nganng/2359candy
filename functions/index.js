@@ -173,7 +173,7 @@ app.post('/postings', (req, res) => {
     });
 })
 // Get all postings
-app.get('/postings', validateUser, (req, res) => {
+app.get('/postings', (req, res) => {
     db.collection('postings').get()
     .then(ref => {
         if (ref.empty) {
