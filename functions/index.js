@@ -257,6 +257,24 @@ app.post('/candidates', validateUser, (req, res) => {
         })
     });
 })
+// Add new candidate (without credential)
+app.post('/candidates-insecure', (req, res) => {
+    if (!req.body.createdAt) {
+        req.body.createdAt = admin.firestore.FieldValue.serverTimestamp()
+    } else {
+        req.body.createdAt = admin.firestore.Timestamp.fromDate(new Date(req.body.createdAt));
+    }
+    if (!req.body.status) req.body.status = "Inbox";
+    db.collection('candidates').add(req.body)
+    .then(ref => {
+        res.status(200).send({ id: ref.id })
+    })
+    .catch(err => {
+        res.status(400).send({
+            message: "An error has occured when adding a candidate " + err
+        })
+    });
+})
 // Get all candidates
 app.get('/candidates', validateUser, (req, res) => {
 
