@@ -174,7 +174,7 @@ app.post('/postings', (req, res) => {
 })
 // Get all postings
 app.get('/postings', (req, res) => {
-    db.collection('postings').get()
+    db.collection('postings').orderBy('jobTitle').get()
     .then(ref => {
         if (ref.empty) {
             res.status(400).send([]);
@@ -278,7 +278,7 @@ app.post('/candidates-insecure', (req, res) => {
 // Get all candidates
 app.get('/candidates', validateUser, (req, res) => {
 
-    let query = db.collection('candidates').orderBy('createdAt');
+    let query = db.collection('candidates').orderBy('createdAt', 'desc');
     if (req.query.status) {
         status = req.query.status;
         query = query.where('status', '==', status);
